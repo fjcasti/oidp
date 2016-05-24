@@ -262,16 +262,17 @@ class IndicadorProxy:
         try:
             fichero = open(nombre, "r")
             l = fichero.read()
-            l = re.sub(r'\n?(.*Acquire::.*::proxy\s*".*"\;)', "", l)
+            l2 = re.sub(r'\n?(.*Acquire::.*::proxy\s*".*"\;)', "", l)
             fichero.close()
-            
-            f = open(nombre, 'w')
-            f.write(l)
-            f.close()            
+            if (not l2 == l):
+                f = open(nombre, 'w')
+                f.write(l2)
+                f.close()            
 
-            comandoSudo = 'gksudo cp apt.conf /etc/apt/apt.conf'
-            os.system(comandoSudo)
-            os.remove("apt.conf")
+                comandoSudo = 'gksudo cp apt.conf /etc/apt/apt.conf'
+                os.system(comandoSudo)
+                os.remove("apt.conf")
+            
         except:
             pass             
 
