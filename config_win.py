@@ -6,7 +6,6 @@ from gi.repository import GLib
 import ConfigParser
 import os
 import sys
-import Tkinter as tk
 
 class ConfigWin:
     def __init__(self):
