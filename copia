@@ -1,4 +1,0 @@
-#!/bin/sh
-cp apt.conf  /etc/apt/apt.conf 
-cp etc.bashrc  /etc/bash.bashrc
-
