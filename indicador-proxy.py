@@ -9,6 +9,7 @@ import re
 import os
 from os.path import expanduser
 from config_win import ConfigWin
+#from dconf_config import GConfig
 import ConfigParser
 from shutil import copyfile
 
@@ -230,53 +231,103 @@ class IndicadorProxy:
 
     # Escribe los parametros dados en el fichero /etc/apt/apt.conf
     def pon_proxy_apt_conf(self, proxy, puerto, usuario, clave):   
-        print "[DEBUG]: params"      , proxy, puerto, usuario, clave
         if (self.lee_conf_apt()):
             print "[DEBUG]: establecer proxy para apt-get"
-            copyfile("/etc/apt/apt.conf", "apt.conf")
+            comandoSudo = "gksudo -m 'Introduzca su contraseña para realizar cambios en el sistema' -- bash -c '"
+            borraFichero1=""
             try:
-                fichero = open("apt.conf", "a")
+                fichero1 = "/etc/apt/apt.conf"
+                fichero2 = "apt.conf"
+
+                copyfile(fichero1, fichero2)
+                f = open(fichero2, "a")
                 if (usuario):
-                    print "[DEBUG]: USAR validacion de usuario"
-                    fichero.write('Acquire::%s::proxy "%s://%s:%s@%s:%s/";\n' % ("ftp","ftp",usuario,clave, proxy, puerto))
-                    fichero.write('Acquire::%s::proxy "%s://%s:%s@%s:%s/";\n' % ("http","http",usuario,clave, proxy, puerto))
-                    fichero.write('Acquire::%s::proxy "%s://%s:%s@%s:%s/";\n' % ("https","https",usuario,clave, proxy, puerto))
+                    f.write('Acquire::%s::proxy "%s://%s:%s@%s:%s/";\n' % ("ftp","ftp",usuario,clave, proxy, puerto))
+                    f.write('Acquire::%s::proxy "%s://%s:%s@%s:%s/";\n' % ("http","http",usuario,clave, proxy, puerto))
+                    f.write('Acquire::%s::proxy "%s://%s:%s@%s:%s/";\n' % ("https","https",usuario,clave, proxy, puerto))
                 else:
-                    print "[DEBUG]: SIN validacion de usuario"
-                    fichero.write('Acquire::%s::proxy "%s://%s:%s/";\n' % ("ftp","ftp", proxy, puerto))
-                    fichero.write('Acquire::%s::proxy "%s://%s:%s/";\n' % ("http","http", proxy, puerto))
-                    fichero.write('Acquire::%s::proxy "%s://%s:%s/";\n' % ("https","https", proxy, puerto))
-                fichero.close()
-                print "[DEBUG]: gksudo"
-                comandoSudo = 'gksudo cp apt.conf /etc/apt/apt.conf'
+                    f.write('Acquire::%s::proxy "%s://%s:%s/";\n' % ("ftp","ftp", proxy, puerto))
+                    f.write('Acquire::%s::proxy "%s://%s:%s/";\n' % ("http","http", proxy, puerto))
+                    f.write('Acquire::%s::proxy "%s://%s:%s/";\n' % ("https","https", proxy, puerto))
+                f.close()
+                comandoSudo +=  'cp ' + fichero2 + ' ' + fichero1 + '; '
+                borraFichero1=fichero2
+            except:
+                pass             
+
+
+            try:
+
+                fichero1 = "/etc/bash.bashrc"
+                fichero2 = "etc.bashrc"
+                copyfile(fichero1, fichero2)
+                f = open(fichero2, "a")
+                if (usuario):
+                    f.write("export HTTP_PROXY=\"http://%s:%s@%s:%s\"\n" % (usuario, clave, proxy, puerto))
+                    f.write("export HTTPS_PROXY=\"https://%s:%s@%s:%s\"\n" % (usuario, clave, proxy, puerto))
+                    f.write("export FTP_PROXY=\"ftp://%s:%s@%s:%s\"\n" % (usuario, clave, proxy, puerto))
+                else:
+                    f.write("export HTTP_PROXY=\"http://%s:%s\"\n" % (proxy, puerto))
+                    f.write("export HTTPS_PROXY=\"https://%s:%s\"\n" % (proxy, puerto))
+                    f.write("export FTP_PROXY=\"ftp://%s:%s\"\n" % (proxy, puerto))
+                f.close()
+                comandoSudo += 'cp ' + fichero2 + ' ' + fichero1 + "'"
                 os.system(comandoSudo)
-                os.remove("apt.conf")
+                os.remove(borraFichero1)
+                os.remove(fichero2)
             except:
                 pass             
 
     # Escribe los parametros dados en el fichero /etc/apt/apt.conf
     def quita_proxy_apt_conf(self):         
         print "[DEBUG]: eliminar proxy para apt-get"
-        copyfile("/etc/apt/apt.conf", "apt.conf")
         nombre="apt.conf"
+        comandoSudo = "gksudo -m 'Introduzca su contraseña para realizar cambios en el sistema' -- bash -c '"
+        borraFichero1=""
         try:
-            fichero = open(nombre, "r")
-            l = fichero.read()
+            fichero1 = "/etc/apt/apt.conf"
+            fichero2 = "apt.conf"
+
+            copyfile(fichero1, fichero2)
+            f = open(nombre, "r")
+            l = f.read()
             l2 = re.sub(r'\n?(.*Acquire::.*::proxy\s*".*"\;)', "", l)
-            fichero.close()
+            f.close()
             if (not l2 == l):
-                f = open(nombre, 'w')
+                f = open(fichero2, 'w')
                 f.write(l2)
                 f.close()            
 
-                comandoSudo = 'gksudo cp apt.conf /etc/apt/apt.conf'
-                os.system(comandoSudo)
-                os.remove("apt.conf")
+                comandoSudo += ' cp ' + fichero2 + '  ' + fichero1 + "; "
+                borraFichero1=fichero2
+
             
+            fichero1 = "/etc/bash.bashrc"
+            fichero2 = "etc.bashrc"
+            copyfile(fichero1, fichero2 )
+            f = open(fichero2, 'r')
+            l = f.read()
+            l = re.sub(r'\n?(.*HTTP_PROXY\s*=\s*".*")', "", l)
+            l = re.sub(r'\n?(.*HTTPS_PROXY\s*=\s*".*")', "", l)
+            l = re.sub(r'\n?(.*FTP_PROXY\s*=\s*".*")', "", l)
+            l = re.sub(r'\n?(.*NO_PROXY\s*=\s*".*")', "", l)
+            f.close()
+
+            f = open(fichero2, 'w')
+            f.write(l)
+            f.close()
+            comandoSudo += ' cp ' + fichero2 + '  ' + fichero1 + "' "
+            os.system(comandoSudo)
+
+
+            os.remove(borraFichero1)
+            os.remove(fichero2)
+            
+
         except:
             pass             
 
-# def pon_proxy_bashrc(servidor="proxy.indra.es", puerto="8080", noproxy=""):
+# def pon_proxy_bashrc(proxy="proxy.indra.es", puerto="8080", noproxy=""):
 #     home = expanduser("~")
 #     fRC = home+"/.bashrc"
 #     print "[DEBUG]: BRC ", fRC
