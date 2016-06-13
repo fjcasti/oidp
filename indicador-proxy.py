@@ -17,10 +17,10 @@ class IndicadorProxy:
     configWin = None
     objRegistro = None
     objPropiedades = None
-
+    strCmd = ""
+    ficheros = []
+      
     def __init__(self):
-        global proxy_estado
-
         # fichero de propiedades
         self.objPropiedades = Propiedades()
 
@@ -28,8 +28,8 @@ class IndicadorProxy:
         self.objRegistro = Registro()
 
         # leer el estado del proxy
-        proxy_estado=self.objRegistro.getStatus()
-        print("[INFO]:  Estado del proxy: " + proxy_estado)
+        estado_proxy=self.objRegistro.getStatus()
+        print("[INFO]:  Estado del proxy: " + estado_proxy)
 
         # configuración del icono
         self.ind = appindicator.Indicator.new("indicador-proxy", "estado del proxy", appindicator.IndicatorCategory.APPLICATION_STATUS)
@@ -37,15 +37,14 @@ class IndicadorProxy:
         self.ind.set_icon(os.path.join(base_dir,'ind-con-proxy.png'))
         self.ind.set_attention_icon (os.path.join(base_dir,'ind-sin-proxy.png'))
         self.ind.set_status(appindicator.IndicatorStatus.ACTIVE)
-        if proxy_estado == "none":
+        if estado_proxy == "none":
             self.ind.set_status(appindicator.IndicatorStatus.ATTENTION)
 
         # establece el menú de la aplicación
-        self.menu_setup()
+        self.menu_setup(estado_proxy)
         self.ind.set_menu(self.menu)
 
-    def menu_setup(self):
-        global proxy_estado
+    def menu_setup(self, estado_proxy):
         self.menu = gtk.Menu()
 
         self.menu_activar = gtk.MenuItem("Usar proxy")
@@ -55,7 +54,7 @@ class IndicadorProxy:
         self.menu_desactivar.connect("activate", self.desactiva_proxy)
         self.menu.append(self.menu_desactivar)
 
-        if proxy_estado == "none":	
+        if estado_proxy == "none":	
             self.menu_activar.show()
         else:
             self.menu_desactivar.show()
@@ -89,24 +88,29 @@ class IndicadorProxy:
 
     def  activa_proxy(self, widget):
         print("[DEBUG]: Activar proxy")
-       
+
+        self.ficheros = []
+        
         # leer información del registro
         servidor = self.objRegistro.getHost()
         puerto   = self.objRegistro.getPort()
-        usarusu  = self.objRegistro.getAuthentication()
-        usuario  = self.objRegistro.getUser()
-        clave    = self.objRegistro.getPassword()
+        usuario  = None
+        clave    = None
+        if self.objRegistro.getAuthentication() == "True":
+            usuario  = self.objRegistro.getUser()
+            clave    = self.objRegistro.getPassword()
+        noproxy  = self.objRegistro.getIgnoreList()
 
-        # activa en el registro el proxy
-        self.objRegistro.setStatus('manual')
 
 
         # estableciendo proxy para aplicaciones de consola (.bashrc)                
-        self.pon_proxy_bashrc(servidor, puerto, usuario, clave)
+        # HACER,  ¿qué pasa si el usuaro = None?
+        self.pon_proxy_bashrc(servidor, puerto, usuario, clave, noproxy)
 
+        
         if (self.objPropiedades.lee("proxy_apt") == "True"):
             # Establece el proxy para 'apt-conf'
-            self.pon_proxy_apt_conf(servidor, puerto, usuario, clave)
+            self.pon_proxy_apt_conf(servidor, puerto, usuario, clave, noproxy)
 
         if (self.objPropiedades.lee("proxy_git") == "True"):
             # Establece el proxy para 'git'
@@ -114,28 +118,58 @@ class IndicadorProxy:
 
         if (self.objPropiedades.lee("proxy_docker") == "True" ):
             # Establece el proxy para 'docker'
-            self.pon_proxy_docker(servidor, puerto, usuario, clave)
+            self.pon_proxy_docker(servidor, puerto, usuario, clave, noproxy)
 
-        # modificando menu e icono
-        self.menu_activar.hide()
-        self.menu_desactivar.show()
-        self.ind.set_status(appindicator.IndicatorStatus.ACTIVE)
+        # escribe las modificaciones en los ficheros si todo está OK
+        if (self.modifica_ficheros()):
+            # activa en el registro el proxy
+            self.objRegistro.setStatus('manual')
+            # modificando menu e icono
+            self.menu_activar.hide()
+            self.menu_desactivar.show()
+            self.ind.set_status(appindicator.IndicatorStatus.ACTIVE)
+       
+    #solicita clave para copiar ficheros del sitema
+    # devuelve true si todo está ok sino devuelve False
+    def modifica_ficheros(self):
+        var=0
+        comandoSudo=""
+        if len(self.ficheros)>0:
+            comandoSudo = "gksudo -m 'Se requiere su contraseña para realizar los cambios en el sistema' -- bash -c '"
+            s = len(self.ficheros)
+            for c in xrange(0,s,2):
+                comandoSudo += "cp " + self.ficheros[c+1] + ' ' + self.ficheros[c] + ";"
+            comandoSudo += "'"
+            var = os.system(comandoSudo)
+            s = len(self.ficheros)
+            for c in xrange(0,s,2):
+                os.remove(self.ficheros[c+1])
+
+        retorno= True
+        if (var != 0):
+            retorno=False
+
+        return retorno
 
 
     def desactiva_proxy(self, widget):
         print ("[DEBUG]: Quitar proxy")
-        # Desactivando el proxy en el registro
-        self.objRegistro.setStatus('none')
+        self.ficheros = []
+
 
         # Desactivando el proxy para las aplicaciones de consola (.bashrc)
         self.quita_proxy_bashrc()
         self.quita_proxy_apt_conf()
         self.quita_proxy_docker()
 
-        # modificando menu e icono
-        self.menu_activar.show()
-        self.menu_desactivar.hide()
-        self.ind.set_status(appindicator.IndicatorStatus.ATTENTION)
+        # escribe las modificaciones en los ficheros si todo está OK
+        if (self.modifica_ficheros()):
+            # Desactivando el proxy en el registro
+            self.objRegistro.setStatus('none')
+            # modificando menu e icono
+            self.menu_activar.show()
+            self.menu_desactivar.hide()
+            self.ind.set_status(appindicator.IndicatorStatus.ATTENTION)
 
     # Opción al seleccionar 'configurar'
     def configurar(self, widget):
@@ -152,27 +186,26 @@ class IndicadorProxy:
         
 
     # Activa el proxy en el fichero ~/.bashrc
-    def pon_proxy_bashrc(self, proxy, puerto, usuario, clave):
+    def pon_proxy_bashrc(self, proxy, puerto, usuario, clave, noproxy):
         print "[DEBUG]: establecer proxy en ~/.bashrc"
         home = expanduser("~")
         f = home+"/.bashrc"
         try:
             fichero = open(f, "a")
             if (usuario):
-                print "[DEBUG] USAR validacion de usuario"
                 fichero.write("export HTTP_PROXY=\"http://%s:%s@%s:%s\"\n" % (usuario, clave, proxy, puerto))
                 fichero.write("export HTTPS_PROXY=\"https://%s:%s@%s:%s\"\n" % (usuario, clave, proxy, puerto))
                 fichero.write("export FTP_PROXY=\"ftp://%s:%s@%s:%s\"\n" % (usuario, clave, proxy, puerto))
             else:
-                print "[DEBUG] SIN validacion de usuario"
                 fichero.write("export HTTP_PROXY=\"http://%s:%s\"\n" % (proxy, puerto))
                 fichero.write("export HTTPS_PROXY=\"https://%s:%s\"\n" % (proxy, puerto))
                 fichero.write("export FTP_PROXY=\"ftp://%s:%s\"\n" % (proxy, puerto))
 
-            fichero.write("export NO_PROXY=\"%s\"\n" % (strExcepciones))
+            fichero.write("export NO_PROXY=\"%s\"\n" % (noproxy))
             fichero.close()
-        except:
-            pass
+        except Exception, e:
+            print "[ERROR]:  except en pon_proxy_bashrc: %s" % e
+            pass             
  
     # Desactivando el proxy para las aplicaciones de consola (.bashrc)    
     def quita_proxy_bashrc(self):
@@ -190,19 +223,21 @@ class IndicadorProxy:
             f = open(fichero, 'w')
             f.write(l)
             f.close()
-        except:
-            pass
+        except Exception, e:
+            print "[ERROR]:  except en quita_proxy_bashrc: %s" % e
+            pass             
 
     # Escribe los parametros dados en el fichero /etc/apt/apt.conf
     # en caso de usar apt-add-repository es necesario usar root para ello hay que 
     # establecer el proxy para usuario root tambien (/etc/bash/bashrc)
-    def pon_proxy_apt_conf(self, proxy, puerto, usuario, clave):   
+    def pon_proxy_apt_conf(self, proxy, puerto, usuario, clave, noproxy):   
         print "[DEBUG]: establecer proxy para apt-get"
-        comandoSudo = "gksudo -m 'Introduzca su contraseña para realizar cambios en el sistema' -- bash -c '"
         borraFichero1=""
         try:
             fichero1 = "/etc/apt/apt.conf"
-            fichero2 = "apt.conf"
+            fichero2 = "apt.conf.temp"
+            self.ficheros.append(fichero1)
+            self.ficheros.append(fichero2)
 
             copyfile(fichero1, fichero2)
             f = open(fichero2, "a")
@@ -215,16 +250,16 @@ class IndicadorProxy:
                 f.write('Acquire::%s::proxy "%s://%s:%s/";\n' % ("http","http", proxy, puerto))
                 f.write('Acquire::%s::proxy "%s://%s:%s/";\n' % ("https","https", proxy, puerto))
             f.close()
-            comandoSudo +=  'cp ' + fichero2 + ' ' + fichero1 + '; '
-            borraFichero1=fichero2
-        except:
+        except Exception, e:
+            print "[ERROR]:  except en pon_proxy_apt_conf (apt): %s" % e
             pass             
 
 
         try:
-
             fichero1 = "/etc/bash.bashrc"
-            fichero2 = "etc.bashrc"
+            fichero2 = "etc.bashrc.temp"
+            self.ficheros.append(fichero1)
+            self.ficheros.append(fichero2)
             copyfile(fichero1, fichero2)
             f = open(fichero2, "a")
             if (usuario):
@@ -235,25 +270,22 @@ class IndicadorProxy:
                 f.write("export HTTP_PROXY=\"http://%s:%s\"\n" % (proxy, puerto))
                 f.write("export HTTPS_PROXY=\"https://%s:%s\"\n" % (proxy, puerto))
                 f.write("export FTP_PROXY=\"ftp://%s:%s\"\n" % (proxy, puerto))
+            f.write("export NO_PROXY=\"%s\"\n" % (noproxy))
             f.close()
-            comandoSudo += 'cp ' + fichero2 + ' ' + fichero1 + "'"
-            os.system(comandoSudo)
-            os.remove(borraFichero1)
-            os.remove(fichero2)
-        except:
+            # comandoSudo += 'cp ' + fichero2 + ' ' + fichero1 + "'"
+        except Exception, e:
+            print "[ERROR]:  except en pon_proxy_apt_conf (bash): %s" % e
             pass             
 
     def quita_proxy_apt_conf(self):         
         print "[DEBUG]: eliminar proxy para apt-get"
-        nombre="apt.conf"
-        comandoSudo = "gksudo -m 'Introduzca su contraseña para realizar cambios en el sistema' -- bash -c '"
-        borraFichero1=""
+
         try:
             fichero1 = "/etc/apt/apt.conf"
             fichero2 = "apt.conf"
 
             copyfile(fichero1, fichero2)
-            f = open(nombre, "r")
+            f = open(fichero2, "r")
             l = f.read()
             l2 = re.sub(r'\n?(.*Acquire::.*::proxy\s*".*"\;)', "", l)
             f.close()
@@ -261,10 +293,8 @@ class IndicadorProxy:
                 f = open(fichero2, 'w')
                 f.write(l2)
                 f.close()            
-
-                comandoSudo += ' cp ' + fichero2 + '  ' + fichero1 + "; "
-                borraFichero1=fichero2
-
+                self.ficheros.append(fichero1)
+                self.ficheros.append(fichero2)
             
             fichero1 = "/etc/bash.bashrc"
             fichero2 = "etc.bashrc"
@@ -280,15 +310,10 @@ class IndicadorProxy:
             f = open(fichero2, 'w')
             f.write(l)
             f.close()
-            comandoSudo += ' cp ' + fichero2 + '  ' + fichero1 + "' "
-            os.system(comandoSudo)
-
-
-            os.remove(borraFichero1)
-            os.remove(fichero2)
-            
-
-        except:
+            self.ficheros.append(fichero1)
+            self.ficheros.append(fichero2)
+        except Exception, e:
+            print "[ERROR]:  except en quita_proxy_apt_conf: %s" % e
             pass             
 
     # Escribe los parametros dados en el fichero ~/.gitconfig
@@ -298,7 +323,6 @@ class IndicadorProxy:
         config = ConfigParser.RawConfigParser()
         config.read(fich)
         valor="http://"+ usuario + ":" + clave + "@" + proxy + ":" + puerto
-        print "[DEBUG]: ", valor
         config.set('http', 'proxy', valor)
         with open(fich, 'wb') as configfile:
             config.write(configfile)
@@ -314,39 +338,45 @@ class IndicadorProxy:
             config.write(configfile)
 
    # Activa el proxy para docker /etc/default/docker
-    def pon_proxy_docker(self, proxy, puerto, usuario, clave):
-        print "[DEBUG]: establecer proxy en /etc/default/docker"
-        
-        fich = "/etc/default/docker"
+    def pon_proxy_docker(self, proxy, puerto, usuario, clave, noproxy):        
+        fichero1 = "/etc/default/docker"
+        fichero2 = "docker.temp"
         try:
-            fichero = open(fich, "a")
+            copyfile(fichero1, fichero2)
+            f = open(fichero2, "a")
             if (usuario):
-                print "[DEBUG]: pon_proxy_docker: con validacion de usuario"
-                fichero.write("export HTTP_PROXY=\"http://%s:%s@%s:%s\"\n" % (usuario, clave, proxy, puerto))
-                fichero.write("export HTTPS_PROXY=\"https://%s:%s@%s:%s\"\n" % (usuario, clave, proxy, puerto))
+                f.write("export HTTP_PROXY=\"http://%s:%s@%s:%s\"\n" % (usuario, clave, proxy, puerto))
+                f.write("export HTTPS_PROXY=\"https://%s:%s@%s:%s\"\n" % (usuario, clave, proxy, puerto))
             else:
-                print "[DEBUG]: pon_proxy_docker"
-                fichero.write("export HTTP_PROXY=\"http://%s:%s\"\n" % (proxy, puerto))
-                fichero.write("export HTTPS_PROXY=\"https://%s:%s\"\n" % (proxy, puerto))
+                f.write("export HTTP_PROXY=\"http://%s:%s\"\n" % (proxy, puerto))
+                f.write("export HTTPS_PROXY=\"https://%s:%s\"\n" % (proxy, puerto))
 
-            fichero.write("export NO_PROXY=\"%s\"\n" % (strExcepciones))
-            fichero.close()
-        except:
-            pass
+            f.write("export NO_PROXY=\"%s\"\n" % (noproxy))
+            f.close()
+            self.ficheros.append(fichero1)
+            self.ficheros.append(fichero2)
+        except Exception, e:
+            print "[ERROR]:  except en pon_proxy_docker: %s" % e
+            pass 
 
     # Desactivando el proxy para las aplicaciones de consola (.bashrc)    
     def quita_proxy_docker(self):
-        fich = "/etc/default/docker"
-
+        fichero1 = "/etc/default/docker"
+        fichero2 = "docker.temp"
         try:
-            f = open(fich, 'r')
+            copyfile(fichero1, fichero2)
+            f = open(fichero2, 'r')
             l = f.read()
-            l = re.sub(r'\n?(.*_PROXY\s*=\s*".*")', "", l)
+            l = re.sub(r'\n?(.*_PROXY\s*=\s*["\'].*["\'])', "", l)
             f.close()
-            f = open(fichero, 'w')
+            f = open(fichero2, 'w')
             f.write(l)
             f.close()
-        except:
+            self.ficheros.append(fichero1)
+            self.ficheros.append(fichero2)
+           
+        except Exception, e:
+            print "[ERROR]:  except en quita_proxy_docker: %s" % e
             pass
 
 

@@ -70,7 +70,6 @@ class ConfigWin:
         self.window.show()
 
     def b_aceptar_clicked(self, button):
-        print ("[DEBUG] Boton aceptar")
         self.objRegistro.setIgnoreList(self.excep.get_text())
         self.objRegistro.setHost(self.servidor.get_text())
         self.objRegistro.setPort(self.puerto.get_text())
@@ -79,33 +78,28 @@ class ConfigWin:
         self.objRegistro.setPassword(self.clave.get_text())
 
         value = self.apt.get_active()
-        self.objPropiedades.escribe("proxy_apt", value)
+        self.objPropiedades.escribe("proxy_apt", str(value))
         value = self.git.get_active()
-        self.objPropiedades.escribe("proxy_git", value)
+        self.objPropiedades.escribe("proxy_git", str(value))
         value = self.docker.get_active()
-        self.objPropiedades.escribe("proxy_docker", value)
+        self.objPropiedades.escribe("proxy_docker", str(value))
 
 
         self.window.destroy()
 
     def b_cancelar_clicked(self, button):
-        print ("[DEBUG] Boton cancelar")
         self.window.destroy()
 
     def cb_aut_toggled(self, button):
         value = button.get_active()
-        print ("[DEBUG]: AUTH pulsado (" + str(value) +")")
         self.usuario.set_sensitive(value)
         self.clave.set_sensitive(value)
 
     def cb_apt_toggled(self, button):
         value = button.get_active()
-        print ("[DEBUG]: APT-GET pulsado (" + str(value) +")")
 
     def cb_git_toggled(self, button):
         value = button.get_active()
-        print ("[DEBUG]: GIT pulsado ((" + str(value) +")")
 
     def cb_docker_toggled(self, button):
         value = button.get_active()
-        print ("[DEBUG]: Docker pulsado ((" + str(value) +")")

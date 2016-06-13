@@ -28,14 +28,16 @@ class Registro:
         lista_excepciones=self.gsettings.get_value('ignore-hosts')
         strExcepciones=""
         for e in lista_excepciones:
-            strExcepciones += e + ", "
-        strExcepciones=strExcepciones[:-2]
+            strExcepciones += e.strip() + ","
+        strExcepciones=strExcepciones[:-1]  #quitamos la coma final
         return strExcepciones
 
     # establece la lista de excepciones para el proxy.
     # recibe una cadena con las excepciones separadas por comas.
     def setIgnoreList(self, strExcepciones):
         lista=strExcepciones.split(",")
+        for l in lista:
+            l.strip()
         self.gsettings.set_value('ignore-hosts', GLib.Variant('as',lista))
 
     # devuelve la cadena con el nombre del servidor proxy
