@@ -104,7 +104,6 @@ class IndicadorProxy:
 
 
         # estableciendo proxy para aplicaciones de consola (.bashrc)                
-        # HACER,  ¿qué pasa si el usuaro = None?
         self.pon_proxy_bashrc(servidor, puerto, usuario, clave, noproxy)
 
         
@@ -129,6 +128,28 @@ class IndicadorProxy:
             self.menu_desactivar.show()
             self.ind.set_status(appindicator.IndicatorStatus.ACTIVE)
        
+
+    def desactiva_proxy(self, widget):
+        print ("[DEBUG]: Quitar proxy")
+        self.ficheros = []
+
+
+        # Desactivando el proxy para las aplicaciones de consola (.bashrc)
+        # HACER: hacer que la petición de contraseña sea solo en caso de necesidad
+        self.quita_proxy_bashrc()
+        self.quita_proxy_apt_conf()
+        self.quita_proxy_git()
+        self.quita_proxy_docker()
+
+        # escribe las modificaciones en los ficheros si todo está OK
+        if (self.modifica_ficheros()):
+            # Desactivando el proxy en el registro
+            self.objRegistro.setStatus('none')
+            # modificando menu e icono
+            self.menu_activar.show()
+            self.menu_desactivar.hide()
+            self.ind.set_status(appindicator.IndicatorStatus.ATTENTION)
+
     #solicita clave para copiar ficheros del sitema
     # devuelve true si todo está ok sino devuelve False
     def modifica_ficheros(self):
@@ -150,26 +171,6 @@ class IndicadorProxy:
             retorno=False
 
         return retorno
-
-
-    def desactiva_proxy(self, widget):
-        print ("[DEBUG]: Quitar proxy")
-        self.ficheros = []
-
-
-        # Desactivando el proxy para las aplicaciones de consola (.bashrc)
-        self.quita_proxy_bashrc()
-        self.quita_proxy_apt_conf()
-        self.quita_proxy_docker()
-
-        # escribe las modificaciones en los ficheros si todo está OK
-        if (self.modifica_ficheros()):
-            # Desactivando el proxy en el registro
-            self.objRegistro.setStatus('none')
-            # modificando menu e icono
-            self.menu_activar.show()
-            self.menu_desactivar.hide()
-            self.ind.set_status(appindicator.IndicatorStatus.ATTENTION)
 
     # Opción al seleccionar 'configurar'
     def configurar(self, widget):
@@ -320,22 +321,33 @@ class IndicadorProxy:
     def pon_proxy_git(self, proxy, puerto, usuario, clave):   
         home = expanduser("~") 
         fich = home+"/.gitconfig"
+        print "[DEBUG]: FICHERO (pon): ", fich
         config = ConfigParser.RawConfigParser()
         config.read(fich)
-        valor="http://"+ usuario + ":" + clave + "@" + proxy + ":" + puerto
-        config.set('http', 'proxy', valor)
-        with open(fich, 'wb') as configfile:
-            config.write(configfile)
+        valor='"http://'+ usuario + ':' + clave + '@' + proxy + ':' + puerto + '"'
+        print "[DEBUG]: VALOR: ", valor
+        try:           
+            config.set('http', 'proxy', valor)
+            with open(fich, 'wb') as configfile:
+                config.write(configfile)
+        except Exception, e:
+            print "[ERROR]: PON_PROXY_GIT: %s" % e
+            pass
 
     def quita_proxy_git(self):
         home = expanduser("~")
         fich = home+"/.gitconfig"
+        print "[DEBUG]: FICHERO (quita): ", fich       
         config = ConfigParser.RawConfigParser()
         config.read(fich)
 
-        config.remove_option("http", "proxy")
-        with open(fich, 'wb') as configfile:
-            config.write(configfile)
+        try:
+            config.remove_option("http", "proxy")
+            with open(fich, 'wb') as configfile:
+                config.write(configfile)
+        except Exception, e:
+            print "[ERROR]: PON_PROXY_GIT: %s" % e
+            pass
 
    # Activa el proxy para docker /etc/default/docker
     def pon_proxy_docker(self, proxy, puerto, usuario, clave, noproxy):        
