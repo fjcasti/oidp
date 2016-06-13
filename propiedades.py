@@ -40,7 +40,6 @@ class Propiedades:
             pass
 
     def escribe(self, clave, valor):
-        print "[DEBUG] Propiedades: Escribiendo en el fichero de  configuración ", clave, valor
         self.config.set(self.seccion, clave, str(valor))
         with open(self.config_file, 'wb') as configfile:
             self.config.write(configfile)
