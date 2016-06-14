@@ -24,7 +24,7 @@ class Propiedades:
         if (not os.path.exists(self.config_file)):
             self.config = SafeConfigParser()
             self.config.read(self.config_file)
-            self.config.add_section(seccion)
+            self.config.add_section(self.seccion)
             self.config.set(self.seccion,"proxy_apt", "False")
             self.config.set(self.seccion,"proxy_git", "False")
             self.config.set(self.seccion,"proxy_docker", "False")
