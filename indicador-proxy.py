@@ -130,8 +130,8 @@ class IndicadorProxy:
        
 
     def desactiva_proxy(self, widget):
-        print ("[DEBUG]: Quitar proxy")
         self.ficheros = []
+        print "[DEBUG]: Quitar proxy:", self.ficheros
 
 
         # Desactivando el proxy para las aplicaciones de consola (.bashrc)
@@ -325,6 +325,9 @@ class IndicadorProxy:
         config.read(fich)
         valor='"http://'+ usuario + ':' + clave + '@' + proxy + ':' + puerto + '"'
         try:           
+            if not config.has_section('http'):
+                config.add_section('http')
+
             config.set('http', 'proxy', valor)
             with open(fich, 'wb') as configfile:
                 config.write(configfile)
