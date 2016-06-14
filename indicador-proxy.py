@@ -32,9 +32,14 @@ class IndicadorProxy:
         estado_proxy=self.objRegistro.getStatus()
         print("[INFO]:  Estado del proxy: " + estado_proxy)
 
+        #limpiando ficheros (aunque puede que aquí no sea suficiente)
+        os.system("bash -c 'rm *.temp 2>/dev/null 1> /dev/null '")
+
         # configuración del icono
         self.ind = appindicator.Indicator.new("indicador-proxy", "estado del proxy", appindicator.IndicatorCategory.APPLICATION_STATUS)
         base_dir=os.path.abspath(os.path.dirname(sys.argv[0]))
+        print "[INFO]:  directorio: ", base_dir
+
         self.ind.set_icon(os.path.join(base_dir,'ind-con-proxy.png'))
         self.ind.set_attention_icon (os.path.join(base_dir,'ind-sin-proxy.png'))
         self.ind.set_status(appindicator.IndicatorStatus.ACTIVE)
@@ -110,7 +115,6 @@ class IndicadorProxy:
         
         if (self.objPropiedades.lee("proxy_apt") == "True"):
             # Establece el proxy para 'apt-conf'
-            print "[DEBUG]: AQUÍ"
             self.pon_proxy_apt_conf(servidor, puerto, usuario, clave, noproxy)
 
         if (self.objPropiedades.lee("proxy_git") == "True"):
@@ -153,7 +157,6 @@ class IndicadorProxy:
     # devuelve true si todo está ok sino devuelve False
     def modifica_ficheros(self):
         var=0
-        os.system("bash -c 'rm *.temp 2>/dev/null 1> /dev/null '")
 
         comando= "bash -c '"
         if len(self.ficheros)>0:
@@ -162,7 +165,7 @@ class IndicadorProxy:
 
             s = len(self.ficheros)
             for c in xrange(0,s,2):
-                comando += "cp ./" + self.ficheros[c+1] + ' ' + self.ficheros[c] + "; "
+                comando += "cp " + self.ficheros[c+1] + ' ' + self.ficheros[c] + "; "
             comando += "'"
 
             var = os.system(comando)
@@ -238,12 +241,12 @@ class IndicadorProxy:
         home = expanduser("~")
         try:
             fichero1 = "/etc/apt/apt.conf"
-            fichero2 = "./apt.conf.temp"
-            print "[DEBUG]: estableciendo proxy en ", fichero1
+            fichero2 = "apt.conf.temp"
             self.ficheros.append(fichero1)
             self.ficheros.append(fichero2)
 
             copyfile(fichero1, fichero2)
+
             f = open(fichero2, "a")
             if (usuario):
                 f.write('Acquire::%s::proxy "%s://%s:%s@%s:%s/";\n' % ("ftp","ftp",usuario,clave, proxy, puerto))
@@ -262,7 +265,7 @@ class IndicadorProxy:
 
         try:
             fichero1 = "/etc/bash.bashrc"
-            fichero2 = "./etc.bashrc.temp"
+            fichero2 = "etc.bashrc.temp"
             self.ficheros.append(fichero1)
             self.ficheros.append(fichero2)
             copyfile(fichero1, fichero2)
@@ -283,9 +286,10 @@ class IndicadorProxy:
             pass             
 
     def quita_proxy_apt_conf(self):         
+        print "[DEBUG]: quita_proxy_apt_conf"
         try:
             fichero1 = "/etc/apt/apt.conf"
-            fichero2 = "./apt.conf.temp"
+            fichero2 = "apt.conf.temp"
             if (os.path.exists(fichero1)):
                 copyfile(fichero1, fichero2)
                 f = open(fichero2, "r")
@@ -303,7 +307,7 @@ class IndicadorProxy:
             
 
             fichero1 = "/etc/bash.bashrc"
-            fichero2 = "./etc.bashrc.temp"
+            fichero2 = "etc.bashrc.temp"
             if (os.path.exists(fichero1)):
                 copyfile(fichero1, fichero2 )
                 f = open(fichero2, 'r')
@@ -362,7 +366,7 @@ class IndicadorProxy:
    # Activa el proxy para docker /etc/default/docker
     def pon_proxy_docker(self, proxy, puerto, usuario, clave, noproxy):        
         fichero1 = "/etc/default/docker"
-        fichero2 = "./docker.temp"
+        fichero2 = "docker.temp"
         print "[DEBUG]: estableciendo proxy en ", fichero1
         try:
             copyfile(fichero1, fichero2)
@@ -386,7 +390,7 @@ class IndicadorProxy:
     # Desactivando el proxy para las aplicaciones de consola (.bashrc)    
     def quita_proxy_docker(self):
         fichero1 = "/etc/default/docker"
-        fichero2 = "./docker.temp"
+        fichero2 = "docker.temp"
 
         if (os.path.exists(fichero1)):    
             try:
