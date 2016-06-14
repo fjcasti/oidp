@@ -211,20 +211,21 @@ class IndicadorProxy:
         home = expanduser("~")
         fichero = home + "/.bashrc"
         print "[DEBUG]: quitando en ~/.bashrc ", fichero
-        try:
-            f = open(fichero, 'r')
-            l = f.read()
-            l = re.sub(r'\n?(.*HTTP_PROXY\s*=\s*".*")', "", l)
-            l = re.sub(r'\n?(.*HTTPS_PROXY\s*=\s*".*")', "", l)
-            l = re.sub(r'\n?(.*FTP_PROXY\s*=\s*".*")', "", l)
-            l = re.sub(r'\n?(.*NO_PROXY\s*=\s*".*")', "", l)
-            f.close()
-            f = open(fichero, 'w')
-            f.write(l)
-            f.close()
-        except Exception, e:
-            print "[ERROR]:  except en quita_proxy_bashrc: %s" % e
-            pass             
+        if (not os.path.exists(fichero)):
+            try:
+                f = open(fichero, 'r')
+                l = f.read()
+                l = re.sub(r'\n?(.*HTTP_PROXY\s*=\s*".*")', "", l)
+                l = re.sub(r'\n?(.*HTTPS_PROXY\s*=\s*".*")', "", l)
+                l = re.sub(r'\n?(.*FTP_PROXY\s*=\s*".*")', "", l)
+                l = re.sub(r'\n?(.*NO_PROXY\s*=\s*".*")', "", l)
+                f.close()
+                f = open(fichero, 'w')
+                f.write(l)
+                f.close()
+            except Exception, e:
+                print "[ERROR]:  except en quita_proxy_bashrc: %s" % e
+                pass             
 
     # Escribe los parametros dados en el fichero /etc/apt/apt.conf
     # en caso de usar apt-add-repository es necesario usar root para ello hay que 
@@ -282,33 +283,36 @@ class IndicadorProxy:
         try:
             fichero1 = "/etc/apt/apt.conf"
             fichero2 = "apt.conf"
-
-            copyfile(fichero1, fichero2)
-            f = open(fichero2, "r")
-            l = f.read()
-            l2 = re.sub(r'\n?(.*Acquire::.*::proxy\s*".*"\;)', "", l)
-            f.close()
-            if (not l2 == l):
-                f = open(fichero2, 'w')
-                f.write(l2)
-                f.close()            
-                self.ficheros.append(fichero1)
-                self.ficheros.append(fichero2)
+            if (os.path.exists(fichero1)):
+                copyfile(fichero1, fichero2)
+                f = open(fichero2, "r")
+                l = f.read()
+                l2 = re.sub(r'\n?(.*Acquire::.*::proxy\s*".*"\;)', "", l)
+                f.close()
+                if (not l2 == l):
+                    f = open(fichero2, 'w')
+                    f.write(l2)
+                    f.close()            
+                    self.ficheros.append(fichero1)
+                    self.ficheros.append(fichero2)
             
+
             fichero1 = "/etc/bash.bashrc"
             fichero2 = "etc.bashrc"
-            copyfile(fichero1, fichero2 )
-            f = open(fichero2, 'r')
-            l = f.read()
-            l2 = re.sub(r'\n?(.*_PROXY\s*=\s*".*")', "", l)
-            f.close()
-            # si el fichero original y el modificado son iguales no hacer nada
-            if (not l2 == l):
-                f = open(fichero2, 'w')
-                f.write(l)
+            if (os.path.exists(fichero1)):
+                copyfile(fichero1, fichero2 )
+                f = open(fichero2, 'r')
+                l = f.read()
+                l2 = re.sub(r'\n?(.*_PROXY\s*=\s*".*")', "", l)
                 f.close()
-                self.ficheros.append(fichero1)
-                self.ficheros.append(fichero2)
+                # si el fichero original y el modificado son iguales no hacer nada
+                if (not l2 == l):
+                    f = open(fichero2, 'w')
+                    f.write(l)
+                    f.close()
+                    self.ficheros.append(fichero1)
+                    self.ficheros.append(fichero2)
+
         except Exception, e:
             print "[ERROR]:  except en quita_proxy_apt_conf: %s" % e
             pass             
@@ -331,16 +335,17 @@ class IndicadorProxy:
     def quita_proxy_git(self):
         home = expanduser("~")
         fich = home+"/.gitconfig"
-        config = ConfigParser.RawConfigParser()
-        config.read(fich)
+        if (os.path.exists(fich)):
+            config = ConfigParser.RawConfigParser()
+            config.read(fich)
 
-        try:
-            config.remove_option("http", "proxy")
-            with open(fich, 'wb') as configfile:
-                config.write(configfile)
-        except Exception, e:
-            print "[ERROR]: PON_PROXY_GIT: %s" % e
-            pass
+            try:
+                config.remove_option("http", "proxy")
+                with open(fich, 'wb') as configfile:
+                    config.write(configfile)
+            except Exception, e:
+                print "[ERROR]: QUITA_PROXY_GIT: %s" % e
+                pass
 
    # Activa el proxy para docker /etc/default/docker
     def pon_proxy_docker(self, proxy, puerto, usuario, clave, noproxy):        
@@ -368,26 +373,25 @@ class IndicadorProxy:
     def quita_proxy_docker(self):
         fichero1 = "/etc/default/docker"
         fichero2 = "docker.temp"
-        try:
-            copyfile(fichero1, fichero2)
-            f = open(fichero2, 'r')
-            l = f.read()
-            l2 = re.sub(r'\n?(.*_PROXY\s*=\s*["\'].*["\'])', "", l)
-            f.close()
-            # si el fichero original y el modificado son iguales no hacer nada 
-            if (not l2 == l):
-                f = open(fichero2, 'w')
-                f.write(l)
+
+        if (os.path.exists(fichero1)):    
+            try:
+                copyfile(fichero1, fichero2)
+                f = open(fichero2, 'r')
+                l = f.read()
+                l2 = re.sub(r'\n?(.*_PROXY\s*=\s*["\'].*["\'])', "", l)
                 f.close()
-                self.ficheros.append(fichero1)
-                self.ficheros.append(fichero2)
-           
-        except Exception, e:
-            print "[ERROR]:  except en quita_proxy_docker: %s" % e
-            pass
-
-
-
+                # si el fichero original y el modificado son iguales no hacer nada 
+                if (not l2 == l):
+                    f = open(fichero2, 'w')
+                    f.write(l)
+                    f.close()
+                    self.ficheros.append(fichero1)
+                    self.ficheros.append(fichero2)
+               
+            except Exception, e:
+                print "[ERROR]:  except en quita_proxy_docker: %s" % e
+                pass
 
 if __name__ == "__main__":
     indicator = IndicadorProxy()
