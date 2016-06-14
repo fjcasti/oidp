@@ -262,7 +262,7 @@ class IndicadorProxy:
 
         try:
             fichero1 = "/etc/bash.bashrc"
-            fichero2 = "etc.bashrc.temp"
+            fichero2 = "./etc.bashrc.temp"
             self.ficheros.append(fichero1)
             self.ficheros.append(fichero2)
             copyfile(fichero1, fichero2)
@@ -285,7 +285,7 @@ class IndicadorProxy:
     def quita_proxy_apt_conf(self):         
         try:
             fichero1 = "/etc/apt/apt.conf"
-            fichero2 = "apt.conf.temp"
+            fichero2 = "./apt.conf.temp"
             if (os.path.exists(fichero1)):
                 copyfile(fichero1, fichero2)
                 f = open(fichero2, "r")
@@ -303,7 +303,7 @@ class IndicadorProxy:
             
 
             fichero1 = "/etc/bash.bashrc"
-            fichero2 = "etc.bashrc.temp"
+            fichero2 = "./etc.bashrc.temp"
             if (os.path.exists(fichero1)):
                 copyfile(fichero1, fichero2 )
                 f = open(fichero2, 'r')
@@ -362,7 +362,7 @@ class IndicadorProxy:
    # Activa el proxy para docker /etc/default/docker
     def pon_proxy_docker(self, proxy, puerto, usuario, clave, noproxy):        
         fichero1 = "/etc/default/docker"
-        fichero2 = "docker.temp"
+        fichero2 = "./docker.temp"
         print "[DEBUG]: estableciendo proxy en ", fichero1
         try:
             copyfile(fichero1, fichero2)
@@ -386,7 +386,7 @@ class IndicadorProxy:
     # Desactivando el proxy para las aplicaciones de consola (.bashrc)    
     def quita_proxy_docker(self):
         fichero1 = "/etc/default/docker"
-        fichero2 = "docker.temp"
+        fichero2 = "./docker.temp"
 
         if (os.path.exists(fichero1)):    
             try:
